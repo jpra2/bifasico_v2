@@ -1,0 +1,11 @@
+*__pycache__
+*.npy
+*.npz
+*.dat
+*.h5m
+*.vtk
+*.msh
+*.txt
+
+
+*gmsh
