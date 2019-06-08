@@ -9,7 +9,7 @@ ADM: True
 # solucao multiescala ADM
 
 ler_anterior: False
-converter_unidades: False
+converter_unidades: True
 loops_de_cada_rodada: 1
 loops_antes_de_reiniciar: 1
 intervalo_de_loops_para_impressao: 1

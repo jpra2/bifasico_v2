@@ -2,7 +2,7 @@ import os
 import numpy as np
 import yaml
 from pymoab import core, types, rng, topo_util
-import set_informations as setinfo
+from preprocess import set_informations as setinfo
 
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 parent_parent_dir = os.path.dirname(parent_dir)
@@ -37,6 +37,7 @@ class Mesh:
         self.mtu = topo_util.MeshTopoUtil(self.mb)
         self.data_loaded = data_loaded
         converter_unidades = data_loaded['converter_unidades']
+        ADM = data_loaded['ADM']
         os.chdir(flying_dir)
         self.mb.load_file(ext_h5m_adm)
         self.all_volumes = self.mb.get_entities_by_dimension(0, 3)
@@ -45,31 +46,10 @@ class Mesh:
         self.all_faces = self.mb.get_entities_by_dimension(0, 2)
         self.all_edges = self.mb.get_entities_by_dimension(0, 1)
         self.tags = LoadADMMesh.load_tags(self.mb)
+        self.tags.update(LoadADMMesh.create_tags_bifasico(self.mb, ADM, self.all_nodes))
 
         self.volumes_d = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['P']]), np.array([None]))
         self.volumes_n = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['Q']]), np.array([None]))
-
-        if converter_unidades:
-            setinfo.convert_to_SI(self.mb, self.tags, self.all_volumes, self.all_faces,
-                                  self.all_nodes, self.volumes_d, self.volumes_n)
-
-        ADM = data_loaded['ADM']
-        if ADM:
-            self.internos, self.faces, self.arestas, self.vertices,
-            self.wirebasket_elems, self.mv, self.bound_faces_nv,
-            self.wirebasket_numbers, self.meshsets_levels, self.finos0, self.intermediarios,
-            self.L2_meshset = LoadADMMesh.load_elems_adm(self.mb, self.tags)
-
-        self.tags.update(LoadADMMesh.create_tags_bifasico(self.mb, ADM, self.all_nodes))
-
-        gravity = data_loaded['gravity']
-        if len(self.volumes_d) == 0:
-            self.wells_injector, self.wells_producer = setinfo.injector_producer_press(self.mb,
-            self.gama_w, self.gama_o, gravity, self.all_nodes, self.volumes_d,
-            self.tags['P'])
-
-        else:
-            self.wells_injector, self.wells_producer = setinfo.injector_producer()
 
         self.mi_w = float(data_loaded['dados_bifasico']['mi_w'])
         self.mi_o = float(data_loaded['dados_bifasico']['mi_o'])
@@ -83,7 +63,29 @@ class Mesh:
         self.total_time = float(data_loaded['dados_bifasico']['total_time'])
         self.gravity = data_loaded['gravity']
 
-        self.all_boundary_faces = self.mb.tag_get_handle(self.mb.tag_get_data(self.tags['FACES_BOUNDARY'], 0, flat=True)[0])
+        if converter_unidades:
+            setinfo.convert_to_SI(self.mb, self.tags, self.all_volumes, self.all_faces,
+                                  self.all_nodes, self.volumes_d, self.volumes_n)
+
+
+        if ADM:
+            self.internos, self.faces, self.arestas, self.vertices, \
+            self.wirebasket_elems, self.mv, self.bound_faces_nv, \
+            self.wirebasket_numbers, self.meshsets_levels, self.finos0, self.intermediarios, \
+            self.L2_meshset = LoadADMMesh.load_elems_adm(self.mb, self.tags)
+
+
+
+        gravity = data_loaded['gravity']
+        if len(self.volumes_n) == 0:
+            self.wells_injector, self.wells_producer = setinfo.injector_producer_press(self.mb,
+            self.gama_w, self.gama_o, gravity, self.all_nodes, self.volumes_d,
+            self.tags)
+
+        else:
+            self.wells_injector, self.wells_producer = setinfo.injector_producer()
+
+        self.all_boundary_faces = self.mb.get_entities_by_handle(self.mb.tag_get_data(self.tags['FACES_BOUNDARY'], 0, flat=True)[0])
         self.all_faces_in = rng.subtract(self.all_faces, self.all_boundary_faces)
         self.Adjs = np.array([np.array(self.mb.get_adjacencies(f, 3)) for f in self.all_faces_in])
 
@@ -131,10 +133,10 @@ class LoadADMMesh:
         nv=len(vertices)
         wirebasket_numbers.append([ni, nf, na, nv])
 
-        inte=mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']), np.array([0]))
-        fac=mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']), np.array([1]))
-        are=mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']), np.array([2]))
-        ver=mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']), np.array([3]))
+        inte = mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']]), np.array([0]))
+        fac = mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']]), np.array([1]))
+        are = mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']]), np.array([2]))
+        ver = mb.get_entities_by_type_and_tag(mv, types.MBHEX, np.array([tags['d2']]), np.array([3]))
         wirebasket_elems.append([np.array(inte), np.array(fac), np.array(are), np.array(ver)])
         wirebasket_numbers.append([len(inte), len(fac), len(are), len(ver)])
 

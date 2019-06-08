@@ -1,5 +1,8 @@
+from pymoab import types, rng
+
 
 def injector_producer_press(mb, gama_w, gama_o, gravity, all_nodes, volumes_d, tags):
+
     press_tag = tags['P']
     values = mb.tag_get_data(press_tag, volumes_d, flat=True)
     wells_injector_tag = mb.tag_get_handle('WELLS_INJECTOR', 1, types.MB_TYPE_HANDLE, types.MB_TAG_SPARSE, True)
@@ -66,7 +69,7 @@ def injector_producer(mb, gama_w, gama_o, gravity, all_nodes, volumes_d, volumes
     return volumes_n, volumes_d
 
 def convert_to_SI(mb, tags, all_volumes, all_faces, all_nodes, volumes_d, volumes_n):
-    import conversao as conv
+    from preprocess import conversao as conv
     k_pe_to_m = 1.0
     k_md_to_m2 = 1.0
     k_psi_to_pa = 1.0
@@ -75,6 +78,10 @@ def convert_to_SI(mb, tags, all_volumes, all_faces, all_nodes, volumes_d, volume
     k_md_to_m2 = conv.milidarcy_to_m2(k_md_to_m2)
     k_psi_to_pa = conv.psi_to_Pa(k_psi_to_pa)
     k_bbldia_to_m3seg = conv.bbldia_to_m3seg(k_bbldia_to_m3seg)
+
+    p_tag = tags['P']
+    k_harm_tag = tags['KHARM']
+    cent_tag = tags['CENT']
 
     press_values = mb.tag_get_data(tags['P'], volumes_d, flat=True)
     press_values *= k_psi_to_pa
