@@ -38,6 +38,7 @@ class Mesh:
         self.data_loaded = data_loaded
         converter_unidades = data_loaded['converter_unidades']
         ADM = data_loaded['ADM']
+        ler_anterior = data_loaded['ler_anterior']
         os.chdir(flying_dir)
         self.mb.load_file(ext_h5m_adm)
         self.all_volumes = self.mb.get_entities_by_dimension(0, 3)
@@ -63,18 +64,15 @@ class Mesh:
         self.total_time = float(data_loaded['dados_bifasico']['total_time'])
         self.gravity = data_loaded['gravity']
 
-        if converter_unidades:
+        if not ler_anterior and converter_unidades:
             setinfo.convert_to_SI(self.mb, self.tags, self.all_volumes, self.all_faces,
                                   self.all_nodes, self.volumes_d, self.volumes_n)
-
 
         if ADM:
             self.internos, self.faces, self.arestas, self.vertices, \
             self.wirebasket_elems, self.mv, self.bound_faces_nv, \
             self.wirebasket_numbers, self.meshsets_levels, self.finos0, self.intermediarios, \
             self.L2_meshset = LoadADMMesh.load_elems_adm(self.mb, self.tags)
-
-
 
         gravity = data_loaded['gravity']
         if len(self.volumes_n) == 0:
@@ -88,6 +86,10 @@ class Mesh:
         self.all_boundary_faces = self.mb.get_entities_by_handle(self.mb.tag_get_data(self.tags['FACES_BOUNDARY'], 0, flat=True)[0])
         self.all_faces_in = rng.subtract(self.all_faces, self.all_boundary_faces)
         self.Adjs = np.array([np.array(self.mb.get_adjacencies(f, 3)) for f in self.all_faces_in])
+
+        if not ler_anterior:
+            LoadADMMesh.set_sat_in(self.mb, self.wells_injector, self.all_volumes, self.tags)
+
 
 class LoadADMMesh:
 
@@ -183,4 +185,10 @@ class LoadADMMesh:
         # coords = coords.reshape([len(all_nodes), 3])
         mb.tag_set_data(tags['NODES'], all_nodes, coords)
 
+
         return tags
+
+    @staticmethod
+    def set_sat_in(mb, injectors, all_volumes, tags):
+        mb.tag_set_data(tags['SAT'], all_volumes, np.repeat(0.2, len(all_volumes)))
+        mb.tag_set_data(tags['SAT'], injectors, np.repeat(1.0, len(injectors)))
