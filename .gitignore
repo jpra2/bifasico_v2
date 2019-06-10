@@ -6,6 +6,7 @@
 *.vtk
 *.msh
 *.txt
+*.pyc
 
 
 *gmsh

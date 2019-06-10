@@ -74,19 +74,23 @@ class Mesh:
             self.wirebasket_numbers, self.meshsets_levels, self.finos0, self.intermediarios, \
             self.L2_meshset = LoadADMMesh.load_elems_adm(self.mb, self.tags)
 
-        gravity = data_loaded['gravity']
+        self.wirebasket_elems_nv1 = LoadADMMesh.load_wirebasket_elems_nv1(self.mb, self.tags)
+
         if len(self.volumes_n) == 0:
             self.wells_injector, self.wells_producer = setinfo.injector_producer_press(self.mb,
-            self.gama_w, self.gama_o, gravity, self.all_nodes, self.volumes_d,
+            self.gama_w, self.gama_o, self.gravity, self.all_nodes, self.volumes_d,
             self.tags)
 
         else:
-            self.wells_injector, self.wells_producer = setinfo.injector_producer()
+            self.wells_injector, self.wells_producer = setinfo.injector_producer(self.mb, self.gama_w, self.gama_o, self.gravity, self.all_nodes, self.volumes_d, self.volumes_n, self.tags)
 
         self.all_boundary_faces = self.mb.get_entities_by_handle(self.mb.tag_get_data(self.tags['FACES_BOUNDARY'], 0, flat=True)[0])
         self.all_faces_in = rng.subtract(self.all_faces, self.all_boundary_faces)
         self.Adjs = np.array([np.array(self.mb.get_adjacencies(f, 3)) for f in self.all_faces_in])
-
+        self.all_centroids = self.mb.tag_get_data(self.tags['CENT'], self.all_volumes)
+        self.all_kharm = self.mb.tag_get_data(self.tags['KHARM'], self.all_faces_in, flat=True)
+        self.ADM = ADM
+        
         if not ler_anterior:
             LoadADMMesh.set_sat_in(self.mb, self.wells_injector, self.all_volumes, self.tags)
 
@@ -96,10 +100,10 @@ class LoadADMMesh:
     @staticmethod
     def load_tags(mb):
         list_names_tags = ['d1', 'd2', 'l1_ID', 'l2_ID', 'l3_ID', 'P', 'Q', 'FACES_BOUNDARY',
-                 'FACES_BOUNDARY_MESHSETS_LEVEL_2', 'FACES_BOUNDARY_MESHSETS_LEVEL_3',
-                 'FINE_TO_PRIMAL1_CLASSIC', 'FINE_TO_PRIMAL2_CLASSIC', 'PRIMAL_ID_1',
-                 'PRIMAL_ID_2', 'L2_MESHSET', 'ID_reord_tag', 'CENT', 'AREA',
-                 'K_EQ', 'KHARM', 'finos0', 'intermediarios']
+                           'FACES_BOUNDARY_MESHSETS_LEVEL_2', 'FACES_BOUNDARY_MESHSETS_LEVEL_3',
+                           'FINE_TO_PRIMAL1_CLASSIC', 'FINE_TO_PRIMAL2_CLASSIC', 'PRIMAL_ID_1',
+                           'PRIMAL_ID_2', 'L2_MESHSET', 'ID_reord_tag', 'CENT', 'AREA',
+                           'K_EQ', 'KHARM', 'finos0', 'intermediarios']
 
         tags = {}
         for name in list_names_tags:
@@ -192,3 +196,13 @@ class LoadADMMesh:
     def set_sat_in(mb, injectors, all_volumes, tags):
         mb.tag_set_data(tags['SAT'], all_volumes, np.repeat(0.2, len(all_volumes)))
         mb.tag_set_data(tags['SAT'], injectors, np.repeat(1.0, len(injectors)))
+
+    @staticmethod
+    def load_wirebasket_elems_nv1(mb, tags):
+        internos = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags['d1']]), np.array([0]))
+        faces = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags['d1']]), np.array([1]))
+        arestas = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags['d1']]), np.array([2]))
+        vertices = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags['d1']]), np.array([3]))
+        wirebasket_elems_nv1 = np.array(list(internos) + list(faces) + list(arestas) + list(vertices))
+
+        return wirebasket_elems_nv1

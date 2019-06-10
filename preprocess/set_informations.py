@@ -28,7 +28,7 @@ def injector_producer_press(mb, gama_w, gama_o, gravity, all_nodes, volumes_d, t
     mb.tag_set_data(wells_producer_tag, 0, wells_producer_meshset)
 
     if gravity:
-        set_p_with_gravity(mb, mtu, press_tag, all_nodes, injectors, producers, gama_w, gama_o, tags)
+        set_p_with_gravity(mb, press_tag, all_nodes, injectors, producers, gama_w, gama_o, tags)
 
     return injectors, producers
 

@@ -1,9 +1,11 @@
+from process.loading import mesh, bif_elems
 
-from preprocess.load_mesh import Mesh
+if mesh.ADM:
+    pass
 
-__all__ = []
+elif not mesh.ADM:
+    from solucao import sol_direta
 
-mesh = Mesh()
 
 import pdb; pdb.set_trace()
-print('saiu')
+print('saiu run bifasico \n')
