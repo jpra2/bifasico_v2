@@ -23,6 +23,8 @@ class Mesh:
     def __init__(self):
         global input_dir
         global flying_dir
+        global bifasico_sol_direta_dir
+        global bifasico_sol_multiescala_dir
         os.chdir(input_dir)
         with open("inputs.yaml", 'r') as stream:
             data_loaded = yaml.load(stream)
@@ -30,17 +32,39 @@ class Mesh:
             # data_loaded = yaml.full_load(stream)
 
         input_file = data_loaded['input_file']
+        self.input_file = input_file
         ext_h5m_adm = input_file + '_malha_adm.h5m'
-        os.chdir(input_dir)
 
         self.mb = core.Core()
         self.mtu = topo_util.MeshTopoUtil(self.mb)
         self.data_loaded = data_loaded
         converter_unidades = data_loaded['converter_unidades']
         ADM = data_loaded['ADM']
-        ler_anterior = data_loaded['ler_anterior']
-        os.chdir(flying_dir)
-        self.mb.load_file(ext_h5m_adm)
+        ler_anterior = np.load('ler_anterior.npy')[0]
+        self.ler_anterior = ler_anterior
+        if ler_anterior == False:
+            os.chdir(flying_dir)
+            self.mb.load_file(ext_h5m_adm)
+            self.ultimo_loop = 0
+            self.vpi = 0.0
+            self.t = 0.0
+
+        else:
+            os.chdir(input_dir)
+            ultimo_loop = np.load('ultimo_loop.npy')[0]
+            self.ultimo_loop = ultimo_loop
+            if ADM == False:
+                ext_h5m = input_file + 'sol_direta_' + str(ultimo_loop) + '.h5m'
+                os.chdir(bifasico_sol_direta_dir)
+                self.mb.load_file(ext_h5m)
+            else:
+                ext_h5m = input_file + 'sol_direta_' + str(ultimo_loop) + '.h5m'
+                os.chdir(bifasico_sol_direta_dir)
+                self.mb.load_file(ext_h5m)
+            hist = np.load('historico_' + str(ultimo_loop) + '.npy')
+            self.vpi = hist[0]
+            self.t = hist[1]
+
         self.all_volumes = self.mb.get_entities_by_dimension(0, 3)
         self.all_nodes = self.mb.get_entities_by_dimension(0, 0)
         self.mtu.construct_aentities(self.all_nodes)
@@ -90,7 +114,9 @@ class Mesh:
         self.all_centroids = self.mb.tag_get_data(self.tags['CENT'], self.all_volumes)
         self.all_kharm = self.mb.tag_get_data(self.tags['KHARM'], self.all_faces_in, flat=True)
         self.ADM = ADM
-        
+        self.vv = self.mb.create_meshset()
+        self.mb.add_entities(self.vv, self.all_volumes)
+
         if not ler_anterior:
             LoadADMMesh.set_sat_in(self.mb, self.wells_injector, self.all_volumes, self.tags)
 
@@ -103,7 +129,7 @@ class LoadADMMesh:
                            'FACES_BOUNDARY_MESHSETS_LEVEL_2', 'FACES_BOUNDARY_MESHSETS_LEVEL_3',
                            'FINE_TO_PRIMAL1_CLASSIC', 'FINE_TO_PRIMAL2_CLASSIC', 'PRIMAL_ID_1',
                            'PRIMAL_ID_2', 'L2_MESHSET', 'ID_reord_tag', 'CENT', 'AREA',
-                           'K_EQ', 'KHARM', 'finos0', 'intermediarios']
+                           'K_EQ', 'KHARM', 'finos0', 'intermediarios', 'PHI']
 
         tags = {}
         for name in list_names_tags:
@@ -169,7 +195,7 @@ class LoadADMMesh:
         tags = {}
         n1 = ['SAT_LAST', 'VOLUME', 'SAT', 'FW', 'LAMB_W', 'LAMB_O', 'LBT', 'MOBI_IN_FACES',
               'FW_IN_FACES', 'TOTAL_FLUX', 'FLUX_W', 'FLUX_IN_FACES', 'S_GRAV',
-              'S_GRAV_VOLUME', 'DFDS', 'GAMAV', 'GAMAF']
+              'S_GRAV_VOLUME', 'DFDS', 'GAMAV', 'GAMAF', 'VOLUME', 'PF']
 
         for name in n1:
             tags[name] = mb.tag_get_handle(name, 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)

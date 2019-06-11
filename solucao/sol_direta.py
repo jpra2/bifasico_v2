@@ -1,4 +1,6 @@
 from utils.others_utils import OtherUtils as oth
+import numpy as np
+import scipy.sparse as sp
 
 class SolDireta:
 
@@ -6,54 +8,53 @@ class SolDireta:
         pass
 
     def solucao_pressao(self, Tf, b):
-        self.P = oth.get_solution(Tf, b)
+        return oth.get_solution(Tf, b)
 
-    def calculate_total_flux(self, volumes, faces):
+    def calculate_total_flux(self, ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity):
 
-        p_tag = self.mb.tag_get_handle('P')
-        volumes_d = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([p_tag]), np.array([None]))
-        ids_vds = self.mb.tag_get_data(self.ids_volumes_tag, volumes_d, flat=True)
-        p_vds = self.mb.tag_get_data(self.pf_tag, volumes_d, flat=True)
+        n = len(volumes)
+        n2 = len(mobi_in_faces)
 
-        mobi_in_faces = self.mb.tag_get_data(self.mobi_in_faces_tag, faces, flat=True)
-        # all_gamaf = self.mb.tag_get_data(self.gamaf_tag, faces, flat=True)
-        fws_faces = self.mb.tag_get_data(self.fw_in_faces_tag, faces, flat=True)
-        ps = self.mb.tag_get_data(self.pf_tag, volumes, flat=True)
-        if self.gravity:
-            all_sgravs = self.mb.tag_get_data(self.s_grav_tag, faces, flat=True)
+        if gravity:
+            all_sgravs = s_grav_f
         else:
-            all_sgravs = np.zeros(len(faces))
+            all_sgravs = np.zeros(n2)
 
-        fluxos = np.zeros(len(volumes))
-        fluxos_w = fluxos.copy()
-        flux_in_faces = np.zeros(len(faces))
-        fluxo_grav_volumes = np.zeros(len(volumes))
+        # fluxo nas faces
+        flux_in_faces = (Pf[ids1] - Pf[ids0])*(mobi_in_faces) + all_sgravs
+        fw_in_faces = flux_in_faces*fw_in_faces
 
-        for i, face in enumerate(faces):
-            # gamaf = all_gamaf[i]
-            elems = self.mb.get_adjacencies(face, 3)
-            id0 = self.map_volumes[elems[0]]
-            id1 = self.map_volumes[elems[1]]
-            mobi = mobi_in_faces[i]
-            # s_grav = self.gama*mobi*(self.all_centroids[id1][2] - self.all_centroids[id0][2])
-            # s_grav = gamaf*mobi*(self.all_centroids[id1][2] - self.all_centroids[id0][2])
-            s_grav = all_sgravs[i]
-            fw = fws_faces[i]
-            flux = (ps[id1] - ps[id0])*mobi
-            if self.gravity == True:
-                flux += s_grav
-                fluxo_grav_volumes[id0] += s_grav
-                fluxo_grav_volumes[id1] -= s_grav
+        lines = []
+        cols = []
+        data = []
 
-            # flux *= -1
+        # fluxo total nos volumes
+        lines.append(ids0)
+        cols.append(np.zeros(n2))
+        data.append(flux_in_faces)
+        lines.append(ids1)
+        cols.append(np.zeros(n2))
+        data.append(-flux_in_faces)
+        lines = np.concatenate(lines)
+        cols = np.concatenate(cols)
+        data = np.concatenate(data)
 
-            fluxos[id0] += flux
-            fluxos_w[id0] += flux*fw
-            fluxos[id1] -= flux
-            fluxos_w[id1] -= flux*fw
-            flux_in_faces[i] = flux
+        flux_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
 
-        self.mb.tag_set_data(self.total_flux_tag, volumes, fluxos)
-        self.mb.tag_set_data(self.flux_w_tag, volumes, fluxos_w)
-        self.mb.tag_set_data(self.flux_in_faces_tag, faces, flux_in_faces)
-        self.mb.tag_set_data(self.s_grav_volume_tag, volumes, fluxo_grav_volumes)
+        # fluxo de agua nos volumes
+        data = []
+        data.append(fw_in_faces)
+        data.append(-fw_in_faces)
+        data = np.concatenate(data)
+
+        fluxos_w_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
+
+        # fluxo de gravidade no volumes
+        data = []
+        data.append(s_grav_f)
+        data.append(-s_grav_f)
+        data = np.concatenate(data)
+
+        s_grav_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
+
+        return flux_volumes, fluxos_w_volumes, flux_in_faces, fw_in_faces, s_grav_volumes

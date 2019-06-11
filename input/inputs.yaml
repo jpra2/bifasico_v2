@@ -1,18 +1,18 @@
 input_file: '30x30x45'
 
-gravity: True
+gravity: False
 # adicionar o efeito da gravidade
 MPFA: False
 # estruturado ou nao
 
-ADM: True
+ADM: False
 # solucao multiescala ADM
 
-ler_anterior: False
+ler_anterior: True
 converter_unidades: False
 loops_de_cada_rodada: 1
 loops_antes_de_reiniciar: 1
-intervalo_de_loops_para_impressao: 1
+numero_de_impressoes: 1
 
 dados_bifasico:
   Sor: 0.2

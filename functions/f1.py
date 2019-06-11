@@ -50,7 +50,7 @@ def get_Tf_and_b(mobi_in_faces, ids0, ids1, volumes, s_grav_f):
     cols = np.concatenate(cols)
     data = np.concatenate(data)
 
-    b = sp.csc_matrix((data, (lines, cols)), shape=(n,1))
+    b = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n,1)).todense()).flatten()
 
     return Tf, b
 
@@ -62,7 +62,7 @@ def set_boundary_dirichlet(Tf, b, ids_volsd, values):
 
     Tf2[ids_volsd] = sp.lil_matrix((n, t))
     Tf2[ids_volsd, ids_volsd] = np.ones(n)
-    b2[ids_volsd, np.zeros(n, dtype=np.int32)] = values
+    b2[ids_volsd] = values
 
     return Tf2, b2
 
