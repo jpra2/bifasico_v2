@@ -314,6 +314,10 @@ class BifasicElems:
 
     def get_Tf_and_b(self):
         self.Tf, self.b = f1.get_Tf_and_b(self.all_mobi_in_faces, self.ids0, self.ids1, self.all_volumes, self.all_s_gravs)
+        if self.gravity:
+            pass
+        else:
+            self.b = np.zeros(len(self.all_volumes))
         self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b, self.ids_volsd, self.values_d)
         if len(self.ids_volsn) > 0:
             self.b2 = f1.set_boundary_neuman(b, self.ids_volsn, self.values_n)

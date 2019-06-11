@@ -8,8 +8,8 @@ MPFA: False
 ADM: False
 # solucao multiescala ADM
 
-ler_anterior: True
-converter_unidades: False
+ler_anterior: False
+converter_unidades: True
 loops_de_cada_rodada: 1
 loops_antes_de_reiniciar: 1
 numero_de_impressoes: 1

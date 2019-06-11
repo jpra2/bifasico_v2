@@ -23,13 +23,13 @@ with open("inputs.yaml", 'r') as stream:
 ler_anterior = data_loaded['ler_anterior']
 np.save('ler_anterior', np.array([ler_anterior]))
 
-if ler_anterior == False:
-    resp = input('tem certeza que deseja perder todos os dados: s/n \n')
-    if resp == 's':
-        pass
-    else:
-        print('reinicie a simulacao')
-        sys.exit(0)
+# if ler_anterior == False:
+#     resp = input('tem certeza que deseja perder todos os dados: s/n \n')
+#     if resp == 's':
+#         pass
+#     else:
+#         print('reinicie a simulacao')
+#         sys.exit(0)
 
 
 
