@@ -32,23 +32,10 @@ def get_Tf_and_b(mobi_in_faces, ids0, ids1, volumes, s_grav_f):
 
     Tf = sp.csc_matrix((data, (lines, cols)), shape=(n, n))
 
-    s_grav_volumes = np.zeros(n)
-
-    lines = []
-    cols = []
-    data = []
-
     n2 = len(s_grav_f)
-
-    lines.append(ids0)
-    cols.append(np.zeros(n2))
-    data.append(s_grav_f)
-    lines.append(ids1)
-    cols.append(np.zeros(n2))
-    data.append(-s_grav_f)
-    lines = np.concatenate(lines)
-    cols = np.concatenate(cols)
-    data = np.concatenate(data)
+    lines = np.concatenate([ids0, ids1])
+    cols = np.zeros(2*n2)
+    data = np.concatenate([s_grav_f, -s_grav_f])
 
     b = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n,1)).todense()).flatten()
 
