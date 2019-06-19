@@ -21,7 +21,7 @@ class SolDireta:
             all_sgravs = np.zeros(n2)
 
         # fluxo nas faces
-        flux_in_faces = (Pf[ids1] - Pf[ids0])*(mobi_in_faces) + all_sgravs
+        flux_in_faces = (Pf[ids1] - Pf[ids0])*(mobi_in_faces) 
         fw_in_faces = flux_in_faces*fw_in_faces
 
         lines = []

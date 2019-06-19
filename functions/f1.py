@@ -2,7 +2,7 @@ import scipy.sparse as sp
 import numpy as np
 
 
-def get_Tf_and_b(mobi_in_faces, ids0, ids1, volumes, s_grav_f):
+def get_Tf(mobi_in_faces, ids0, ids1, volumes):
     '''
     mobi_in_faces = mobilidade das faces internas
     ids0 = adjs[:,0]
@@ -32,14 +32,7 @@ def get_Tf_and_b(mobi_in_faces, ids0, ids1, volumes, s_grav_f):
 
     Tf = sp.csc_matrix((data, (lines, cols)), shape=(n, n))
 
-    n2 = len(s_grav_f)
-    lines = np.concatenate([ids0, ids1])
-    cols = np.zeros(2*n2)
-    data = np.concatenate([s_grav_f, -s_grav_f])
-
-    b = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n,1)).todense()).flatten()
-
-    return Tf, b
+    return Tf
 
 def set_boundary_dirichlet(Tf, b, ids_volsd, values):
     Tf2 = Tf.copy().tolil()

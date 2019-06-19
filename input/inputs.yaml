@@ -1,6 +1,6 @@
 input_file: '30x30x45'
 
-gravity: False
+gravity: True
 # adicionar o efeito da gravidade
 MPFA: False
 # estruturado ou nao
@@ -9,7 +9,7 @@ ADM: False
 # solucao multiescala ADM
 
 ler_anterior: False
-converter_unidades: True
+converter_unidades: False
 loops_de_cada_rodada: 1
 loops_antes_de_reiniciar: 1
 numero_de_impressoes: 1
@@ -19,8 +19,8 @@ dados_bifasico:
   Swc: 0.2
   mi_w: 1.0
   mi_o: 5.0
-  gama_w: 10.0
-  gama_o: 9.0
+  gama_w: 100.0
+  gama_o: 90.0
   nwater: 2.0
   noil: 2.0
   loops: 1000

@@ -17,7 +17,7 @@ output_dir = os.path.join(parent_parent_dir, 'output')
 
 class BifasicElems:
 
-    def __init__(self, data_loaded, Adjs, all_centroids, all_faces_in, all_kharm, all_volumes, injectors, producers, tags, mb, volumes_d, volumes_n, ler_anterior, mtu):
+    def __init__(self, data_loaded, Adjs, all_centroids, all_faces_in, all_kharm, all_volumes, injectors, producers, tags, mb, volumes_d, volumes_n, ler_anterior, mtu, wirebasket_elems_nv1):
         self.cfl_ini = 0.5
         self.mi_w = float(data_loaded['dados_bifasico']['mi_w'])
         self.mi_o = float(data_loaded['dados_bifasico']['mi_o'])
@@ -33,7 +33,7 @@ class BifasicElems:
         # ler_anterior = data_loaded['ler_anterior']
         self.Adjs = Adjs
         self.tags = tags
-        self.all_centroids = all_centroids
+        self.all_centroids = mb.tag_get_data(tags['CENT'], all_volumes)
         self.all_faces_in = all_faces_in
         self.all_kharm = all_kharm
         self.map_volumes = dict(zip(all_volumes, range(len(all_volumes))))
@@ -50,6 +50,10 @@ class BifasicElems:
         self.phis = mb.tag_get_data(tags['PHI'], all_volumes, flat=True)
         self.faces_volumes = [rng.intersect(mtu.get_bridge_adjacencies(v, 3, 2), all_faces_in) for v in all_volumes]
         self.mb = mb
+        self.ids_reord = self.mb.tag_get_data(self.tags['ID_reord_tag'], self.all_volumes, flat=True)
+        self.map_global = dict(zip(self.all_volumes, self.ids_reord))
+        self.wirebasket_elems_nv1 = wirebasket_elems_nv1
+        self.mtu = mtu
 
         v0 = all_volumes[0]
         points = mtu.get_bridge_adjacencies(v0, 3, 0)
@@ -62,12 +66,13 @@ class BifasicElems:
         vol = hs[0]*hs[1]*hs[2]
         mb.tag_set_data(tags['VOLUME'], all_volumes, np.repeat(vol, len(all_volumes)))
 
-        historico = np.array(['vpi','tempo_decorrido', 'prod_agua', 'prod_oleo', 'wor', 'dt'])
+        historico = np.array(['vpi','tempo_decorrido', 'prod_agua', 'prod_oleo', 'wor', 'dt', 'loop'])
         np.save('historico', historico)
         self.delta_t = 0.0
         self.Vs = mb.tag_get_data(tags['VOLUME'], all_volumes, flat=True)
         self.V_total = float((self.Vs*self.phis).sum())
         self.vpi = 0.0
+        self.hist2 = []
 
         self.load_sats_ini(mb, tags['SAT'])
 
@@ -77,7 +82,6 @@ class BifasicElems:
             self.set_lamb()
             self.set_mobi_faces_ini()
         pass
-
 
     def load_sats_ini(self, mb, sat_tag):
         self.all_sats = mb.tag_get_data(sat_tag, self.all_volumes, flat=True)
@@ -147,13 +151,14 @@ class BifasicElems:
         all_kharm = self.all_kharm
         all_faces_in = self.all_faces_in
         map_volumes = self.map_volumes
-        all_faces_in = self.all_faces_in
+        set_wells_injector = set(self.wells_injector)
 
         all_mobi_in_faces = np.zeros(len(all_faces_in))
         all_s_gravs = all_mobi_in_faces.copy()
         all_fw_in_face = all_mobi_in_faces.copy()
         all_dfds = all_mobi_in_faces.copy()
         all_gamaf = all_mobi_in_faces.copy()
+        s_grav_volumes = np.zeros(len(self.all_volumes))
         Adjs = self.Adjs
 
         for i, face in enumerate(all_faces_in):
@@ -174,11 +179,11 @@ class BifasicElems:
                 all_dfds[i] = 0.0
             else:
                 all_dfds[i] = abs((fw0 - fw1)/(sat0 - sat1))
-            if elems[0] in self.wells_injector:
+            if set([elems[0]]) & set_wells_injector:
                 all_mobi_in_faces[i] = kharm*lbt0
                 all_fw_in_face[i] = fw0
                 gamaf = gama0
-            elif elems[1] in self.wells_injector:
+            elif set([elems[1]]) & set_wells_injector:
                 all_mobi_in_faces[i] = kharm*lbt1
                 all_fw_in_face[i] = fw1
                 gamaf = gama1
@@ -188,18 +193,47 @@ class BifasicElems:
                 gamaf = (gama0 + gama1)/2.0
             all_s_gravs[i] = gamaf*all_mobi_in_faces[i]*(all_centroids[id1][2] - all_centroids[id0][2])
             all_gamaf[i] = gamaf
+            s_grav_volumes[id0] += all_s_gravs[i]
+            s_grav_volumes[id1] -= all_s_gravs[i]
 
         self.all_mobi_in_faces = all_mobi_in_faces
         self.all_s_gravs = all_s_gravs
         self.all_fw_in_face = all_fw_in_face
         self.all_dfds = all_dfds
         self.all_gamaf = all_gamaf
+        self.s_grav_volumes = s_grav_volumes
+
+        volumes = self.all_volumes
 
         self.mb.tag_set_data(self.tags['MOBI_IN_FACES'], self.all_faces_in, self.all_mobi_in_faces)
         self.mb.tag_set_data(self.tags['S_GRAV'], self.all_faces_in, self.all_s_gravs)
         self.mb.tag_set_data(self.tags['FW_IN_FACES'], self.all_faces_in, self.all_fw_in_face)
         self.mb.tag_set_data(self.tags['DFDS'], self.all_faces_in, self.all_dfds)
         self.mb.tag_set_data(self.tags['GAMAF'], self.all_faces_in, self.all_gamaf)
+        self.mb.tag_set_data(self.tags['S_GRAV_VOLUME'], volumes, s_grav_volumes)
+
+        # s_grav2 = np.zeros(len(self.all_volumes))
+        # cont = 0
+        # passados = set()
+        #
+        # for v in self.all_volumes:
+        #     v = int(v)
+        #     faces0 = self.mtu.get_bridge_adjacencies(v, 3, 2)
+        #     cent0 = self.mb.tag_get_data(self.tags['CENT'], int(v), flat=True)
+        #     adjs = self.mtu.get_bridge_adjacencies(v, 2, 3)
+        #     for adj in adjs:
+        #         adj = int(adj)
+        #         if set([adj]) & passados:
+        #             continue
+        #         faces1 = self.mtu.get_bridge_adjacencies(adj, 3, 2)
+        #         cent1 = self.mb.tag_get_data(self.tags['CENT'], adj, flat=True)
+        #         f = rng.intersect(faces0, faces1)
+        #         gamaf = self.mb.tag_get_data(self.tags['GAMAF'], f, flat=True)[0]
+        #         mobi = self.mb.tag_get_data(self.tags['MOBI_IN_FACES'], f, flat=True)[0]
+        #         s_g = gamaf*mobi*(cent1[2] - cent0[2])
+        #         s_grav2[map_volumes[v]] += s_g
+        #         s_grav2[map_volumes[adj]] -= s_g
+        #     passados.add(v)
 
     def set_mobi_faces(self, finos0=None):
 
@@ -246,13 +280,14 @@ class BifasicElems:
         map_volumes = self.map_volumes
         Adjs = self.Adjs
         faces = self.all_faces_in
+        set_wells_injector = set(self.wells_injector)
 
         all_mobi_in_faces = np.zeros(len(all_faces_in))
         all_s_gravs = all_mobi_in_faces.copy()
         all_fw_in_face = all_mobi_in_faces.copy()
         all_dfds = all_mobi_in_faces.copy()
         all_gamaf = all_mobi_in_faces.copy()
-
+        s_grav_volumes = np.zeros(len(self.all_volumes))
 
         for i, face in enumerate(faces):
             elems = Adjs[i]
@@ -278,12 +313,12 @@ class BifasicElems:
             #     self.mb.add_entities(finos, elems)
 
             flux_in_face = all_flux_in_faces[i]
-            if elems[0] in self.wells_injector:
+            if set([elems[0]]) & set_wells_injector:
                 all_mobi_in_faces[i] = kharm*lbt0
                 all_fw_in_face[i] = fw0
                 gamaf = gama0
                 # continue
-            elif elems[1] in self.wells_injector:
+            elif set([elems[1]]) & set_wells_injector:
                 all_mobi_in_faces[i] = kharm*lbt1
                 all_fw_in_face[i] = fw1
                 gamaf = gama1
@@ -299,23 +334,29 @@ class BifasicElems:
             # all_s_gravs[i] = self.gama*all_mobi_in_faces[i]*(all_centroids[id1][2] - all_centroids[id0][2])
             all_s_gravs[i] = gamaf*all_mobi_in_faces[i]*(all_centroids[id1][2] - all_centroids[id0][2])
             all_gamaf[i] = gamaf
+            s_grav_volumes[id0] += all_s_gravs[i]
+            s_grav_volumes[id1] -= all_s_gravs[i]
 
         self.all_mobi_in_faces = all_mobi_in_faces
         self.all_s_gravs = all_s_gravs
         self.all_fw_in_face = all_fw_in_face
         self.all_dfds = all_dfds
         self.all_gamaf = all_gamaf
+        self.s_grav_volumes = s_grav_volumes
+
+        volumes = self.all_volumes
 
         self.mb.tag_set_data(self.tags['MOBI_IN_FACES'], self.all_faces_in, self.all_mobi_in_faces)
         self.mb.tag_set_data(self.tags['S_GRAV'], self.all_faces_in, self.all_s_gravs)
         self.mb.tag_set_data(self.tags['FW_IN_FACES'], self.all_faces_in, self.all_fw_in_face)
         self.mb.tag_set_data(self.tags['DFDS'], self.all_faces_in, self.all_dfds)
         self.mb.tag_set_data(self.tags['GAMAF'], self.all_faces_in, self.all_gamaf)
+        self.mb.tag_set_data(self.tags['S_GRAV_VOLUME'], volumes, s_grav_volumes)
 
     def get_Tf_and_b(self):
-        self.Tf, self.b = f1.get_Tf_and_b(self.all_mobi_in_faces, self.ids0, self.ids1, self.all_volumes, self.all_s_gravs)
+        self.Tf = f1.get_Tf(self.all_mobi_in_faces, self.ids0, self.ids1, self.all_volumes)
         if self.gravity:
-            pass
+            self.b = -1*self.mb.tag_get_data(self.tags['S_GRAV_VOLUME'], self.wirebasket_elems_nv1, flat=True)
         else:
             self.b = np.zeros(len(self.all_volumes))
         self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b, self.ids_volsd, self.values_d)
@@ -395,7 +436,7 @@ class BifasicElems:
         self.mb.tag_set_data(self.tags['TOTAL_FLUX'], self.all_volumes, self.fluxos)
         self.mb.tag_set_data(self.tags['FLUX_W'], self.all_volumes, self.fluxos_w)
         self.mb.tag_set_data(self.tags['FLUX_IN_FACES'], self.all_faces_in, self.flux_in_faces)
-        self.mb.tag_set_data(self.tags['S_GRAV_VOLUME'], self.all_volumes, self.fluxo_grav_volumes)
+        # self.mb.tag_set_data(self.tags['S_GRAV_VOLUME'], self.all_volumes, self.fluxo_grav_volumes)
         self.mb.tag_set_data(self.tags['PF'], self.all_volumes, self.Pf)
 
     def verificar_cfl(self, loop):
@@ -571,11 +612,15 @@ class BifasicElems:
         wor = qw/float(qo)
         vpi = (self.flux_total_prod.sum()*self.delta_t)/self.V_total
         self.vpi += vpi
-        self.hist = np.array([self.vpi, t, qw, qo, wor, dt])
+        self.hist = np.array([self.vpi, t, qw, qo, wor, dt, loop])
+        self.hist2.append(self.hist)
 
     def print_hist(self, loop):
         name = 'historico_' + str(loop)
         np.save(name, self.hist)
+        name2 = 'historico2_' + str(loop)
+        np.save(name2, np.array(self.hist2))
+        self.hist2 = []
 
     def load_infos(self):
         self.all_lamb_w = self.mb.tag_get_data(self.tags['LAMB_W'], self.all_volumes, flat=True)
@@ -588,3 +633,4 @@ class BifasicElems:
         self.all_fw_in_face = self.mb.tag_get_data(self.tags['FW_IN_FACES'], self.all_faces_in, flat=True)
         self.all_dfds = self.mb.tag_get_data(self.tags['DFDS'], self.all_faces_in, flat=True)
         self.all_gamaf = self.mb.tag_get_data(self.tags['GAMAF'], self.all_faces_in, flat=True)
+        self.s_grav_volumes = self.mb.tag_get_data(self.tags['S_GRAV_VOLUME'], self.all_volumes, flat=True)
