@@ -475,6 +475,7 @@ class BifasicElems:
         #self.loop = loop
         volumes = self.all_volumes
         delta_sat = 0.001
+        max_delta_sat = 0.6
         lim = 1e-10
         lim_qw = 9e-8
         all_qw = self.fluxos_w
@@ -543,6 +544,9 @@ class BifasicElems:
                 sat = 1-self.Sor
             elif sat > self.Swc - delta_sat and sat < self.Swc + delta_sat:
                 sat = self.Swc
+
+            elif abs(sat - sat1) > max_delta_sat:
+                return 1
 
             elif sat > 1-self.Sor:
                 #sat = 1 - self.Sor
