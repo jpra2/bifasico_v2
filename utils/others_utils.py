@@ -806,7 +806,9 @@ class OtherUtils:
     @staticmethod
     def get_Tmod_by_sparse_wirebasket_matrix(Tf_wire, wirebasket_numbers):
 
+        As = {}
         Tmod = Tf_wire.copy().tolil()
+        As['Tf'] = Tmod
         ni = wirebasket_numbers[0]
         nf = wirebasket_numbers[1]
         ne = wirebasket_numbers[2]
@@ -838,7 +840,7 @@ class OtherUtils:
         Aee.setdiag(d1)
         Ivv = sp.identity(nv)
 
-        As = {}
+
         As['Aii'] = Aii
         As['Aif'] = Aif
         As['Aff'] = Aff

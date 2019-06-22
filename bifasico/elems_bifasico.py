@@ -490,10 +490,13 @@ class BifasicElems:
 
         sats_2 = np.zeros(len(volumes))
 
+        set_wells_producer = set(self.wells_producer)
+        set_wells_injector = set(self.wells_injector)
+
         for i, volume in enumerate(volumes):
             sat1 = all_sats[i]
             V = all_volumes[i]
-            if volume in self.wells_injector or sat1 == 0.8:
+            if set([volume]) & set_wells_injector or sat1 == 0.8:
                 sats_2[i] = sat1
                 continue
             qw = all_qw[i]
@@ -521,7 +524,7 @@ class BifasicElems:
             if fi == 0.0:
                 sats_2[i] = sat1
                 continue
-            if volume in self.wells_producer:
+            if set([volume]) & set_wells_producer:
                 fw = all_fw[i]
                 flux = all_total_flux[i]
                 qw_out = flux*fw

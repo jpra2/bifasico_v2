@@ -17,7 +17,6 @@ out_bif_dir = os.path.join(output_dir, 'bifasico')
 out_bif_soldir_dir =  os.path.join(out_bif_dir, 'sol_direta')
 out_bif_solmult_dir =  os.path.join(out_bif_dir, 'sol_multiescala')
 
-
 class Mesh:
 
     def __init__(self):
@@ -96,7 +95,7 @@ class Mesh:
             self.internos, self.faces, self.arestas, self.vertices, \
             self.wirebasket_elems, self.mv, self.bound_faces_nv, \
             self.wirebasket_numbers, self.meshsets_levels, self.finos0, self.intermediarios, \
-            self.L2_meshset = LoadADMMesh.load_elems_adm(self.mb, self.tags)
+            self.L2_meshset, self.faces_adjs_by_dual, self.intern_adjs_by_dual = LoadADMMesh.load_elems_adm(self.mb, self.tags)
 
         self.wirebasket_elems_nv1 = LoadADMMesh.load_wirebasket_elems_nv1(self.mb, self.tags)
 
@@ -118,7 +117,7 @@ class Mesh:
         self.mb.add_entities(self.vv, self.all_volumes)
 
         if not ler_anterior:
-            LoadADMMesh.set_sat_in(self.mb, self.wells_injector, self.all_volumes, self.tags)
+            LoadADMMesh.set_sat_in(self.mb, self.wells_injector, self.all_volumes, self.tags, self.all_centroids)
 
 
 class LoadADMMesh:
@@ -188,7 +187,11 @@ class LoadADMMesh:
 
         L2_meshset = mb.tag_get_data(mb.tag_get_handle('L2_MESHSET'), 0, flat=True)[0]
 
-        return internos, faces, arestas, vertices, wirebasket_elems, mv, bound_faces_nv, wirebasket_numbers, meshsets_levels, finos0, intermediarios, L2_meshset
+        global flying_dir
+        os.chdir(flying_dir)
+        faces_adjs_by_dual = np.load('faces_adjs_by_dual.npy')
+        intern_adjs_by_dual = np.load('intern_adjs_by_dual.npy')
+        return internos, faces, arestas, vertices, wirebasket_elems, mv, bound_faces_nv, wirebasket_numbers, meshsets_levels, finos0, intermediarios, L2_meshset, faces_adjs_by_dual, intern_adjs_by_dual
 
     @staticmethod
     def create_tags_bifasico(mb, ADM, all_nodes):
@@ -219,9 +222,38 @@ class LoadADMMesh:
         return tags
 
     @staticmethod
-    def set_sat_in(mb, injectors, all_volumes, tags):
+    def set_sat_in(mb, injectors, all_volumes, tags, all_centroids=None):
         mb.tag_set_data(tags['SAT'], all_volumes, np.repeat(0.2, len(all_volumes)))
         mb.tag_set_data(tags['SAT'], injectors, np.repeat(1.0, len(injectors)))
+        # lx = 20
+        # ly = 10
+        # lz = 2
+        #
+        # nx = 30
+        # ny = 30
+        # nz = 45
+        #
+        # lx1 = nx*lx
+        # ly1 = ny*ly
+        # lz1 = nz*lz
+        #
+        # b1 = np.array([np.array([0.0, 0.0, 0.0]), np.array([lx1, ly1, lz1/2])])
+        # b2 = np.array([np.array([0.0, 0.0, lz1/2]), np.array([lx1, ly1, lz1])])
+        #
+        # inds0 = np.where(all_centroids[:,0] > b1[0,0])[0]
+        # inds1 = np.where(all_centroids[:,1] > b1[0,1])[0]
+        # inds2 = np.where(all_centroids[:,2] > b1[0,2])[0]
+        # c1 = set(inds0) & set(inds1) & set(inds2)
+        # inds0 = np.where(all_centroids[:,0] < b1[1,0])[0]
+        # inds1 = np.where(all_centroids[:,1] < b1[1,1])[0]
+        # inds2 = np.where(all_centroids[:,2] < b1[1,2])[0]
+        # c2 = set(inds0) & set(inds1) & set(inds2)
+        # inds_vols1 = np.array(list(c1 & c2))
+        #
+        # volsb1 = rng.Range(np.array(all_volumes)[inds_vols1])
+        #
+        # mb.tag_set_data(tags['SAT'], all_volumes, np.repeat(0.8, len(all_volumes)))
+        # mb.tag_set_data(tags['SAT'], volsb1, np.repeat(0.2, len(volsb1)))
 
     @staticmethod
     def load_wirebasket_elems_nv1(mb, tags):

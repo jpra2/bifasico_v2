@@ -27,6 +27,7 @@ loops2 = 0
 t2 = 0.0
 
 if mesh.ADM:
+    t0 = time.time()
     pass
 
 elif not mesh.ADM:
@@ -87,6 +88,8 @@ elif not mesh.ADM:
             os.chdir(bifasico_sol_direta_dir)
             if cont_imp >= n_impressoes:
                 sys.exit(0)
+
+        import pdb; pdb.set_trace()
 
 import pdb; pdb.set_trace()
 

@@ -5,7 +5,7 @@ gravity: True
 MPFA: False
 # estruturado ou nao
 
-ADM: False
+ADM: True
 # solucao multiescala ADM
 
 ler_anterior: False
@@ -17,10 +17,10 @@ numero_de_impressoes: 1
 dados_bifasico:
   Sor: 0.2
   Swc: 0.2
-  mi_w: 1.0
-  mi_o: 5.0
-  gama_w: 100.0
-  gama_o: 90.0
+  mi_w: 0.001
+  mi_o: 0.005
+  gama_w: 10.0
+  gama_o: 9.0
   nwater: 2.0
   noil: 2.0
   loops: 1000
