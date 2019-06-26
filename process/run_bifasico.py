@@ -23,11 +23,18 @@ bif_elems.vpi = mesh.vpi
 contador = 0
 cont_imp = 0
 
+ids0 = bif_elems.ids0
+ids1 = bif_elems.ids1
+
 loops2 = 0
 t2 = 0.0
 
 if mesh.ADM:
-    t0 = time.time()
+    os.chdir(bifasico_sol_multiescala_dir)
+    from solucao.sol_adm import SolAdm
+
+    sol = SolAdm(mesh.mb, mesh.wirebasket_elems, mesh.wirebasket_numbers, mesh.tags, mesh.all_volumes, mesh.faces_adjs_by_dual, mesh.intern_adjs_by_dual)
+    import pdb; pdb.set_trace()
     pass
 
 elif not mesh.ADM:
@@ -35,8 +42,6 @@ elif not mesh.ADM:
     from solucao.sol_direta import SolDireta
 
     sol = SolDireta()
-    ids0 = bif_elems.ids0
-    ids1 = bif_elems.ids1
 
     while verif:
         contador += 1
